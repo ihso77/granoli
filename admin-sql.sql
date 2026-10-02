@@ -135,3 +135,68 @@ CREATE POLICY "Admins update coupons" ON coupons
 DROP POLICY IF EXISTS "Admins delete coupons" ON coupons;
 CREATE POLICY "Admins delete coupons" ON coupons
   FOR DELETE USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));
+
+-- 10) ═══ الطلبات مباشرة في Supabase (بدون سيرفر — مهم لموقع Vercel) ═══
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_notes TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS note TEXT;
+
+DROP FUNCTION IF EXISTS place_order(JSONB, NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
+CREATE FUNCTION place_order(
+  p_items JSONB,
+  p_total NUMERIC,
+  p_coupon TEXT,
+  p_name TEXT,
+  p_phone TEXT,
+  p_city TEXT,
+  p_address TEXT,
+  p_notes TEXT
+) RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  order_id UUID;
+  it JSONB;
+  pid UUID;
+  qty INT;
+BEGIN
+  INSERT INTO orders (user_id, status, total, shipping_name, shipping_phone, shipping_city, shipping_address, shipping_notes, payment_method, coupon_code)
+  VALUES (auth.uid(), 'pending', p_total, p_name, p_phone, p_city, p_address, NULLIF(p_notes, ''), 'cod', NULLIF(p_coupon, ''))
+  RETURNING id INTO order_id;
+
+  IF order_id IS NULL THEN
+    RAISE EXCEPTION 'تعذر إنشاء الطلب';
+  END IF;
+
+  FOR it IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    pid := NULLIF(it->>'productId', '')::uuid;
+    qty := COALESCE((it->>'qty')::INT, 1);
+    IF pid IS NOT NULL THEN
+      IF EXISTS (SELECT 1 FROM products WHERE id = pid AND stock IS NOT NULL AND stock >= qty) THEN
+        UPDATE products SET stock = stock - qty WHERE id = pid;
+      ELSIF EXISTS (SELECT 1 FROM products WHERE id = pid AND stock IS NULL) THEN
+        NULL;
+      ELSE
+        RAISE EXCEPTION 'الكمية غير كافية للمنتج %', pid;
+      END IF;
+    END IF;
+    INSERT INTO order_items (order_id, product_id, product_name, quantity, weight, price, note)
+    VALUES (order_id, pid, COALESCE(it->>'name_en', it->>'name_ar', 'منتج'), qty, COALESCE(it->>'weight', ''), COALESCE((it->>'price')::NUMERIC, 0), NULLIF(it->>'note', ''));
+  END LOOP;
+
+  RETURN order_id::text;
+END $$;
+
+GRANT EXECUTE ON FUNCTION place_order(JSONB, NUMERIC, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+
+DROP POLICY IF EXISTS "Admins read orders" ON orders;
+CREATE POLICY "Admins read orders" ON orders FOR SELECT
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));
+
+DROP POLICY IF EXISTS "Admins update orders" ON orders;
+CREATE POLICY "Admins update orders" ON orders FOR UPDATE
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));
+
+DROP POLICY IF EXISTS "Admins read order items" ON order_items;
+CREATE POLICY "Admins read order items" ON order_items FOR SELECT
+  USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));

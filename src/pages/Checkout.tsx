@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCart, getCartTotal, clearCart, getCoupon, couponDiscount } from '../lib/cart'
+import { supabase } from '../lib/supabase'
 import { useL } from '../lib/settings'
 
 export default function Checkout() {
@@ -19,21 +20,34 @@ export default function Checkout() {
     const btn = e.currentTarget.querySelector('.pay-btn') as HTMLButtonElement
     btn.disabled = true; btn.textContent = t('checkout.paying')
     const fd = new FormData(e.currentTarget)
-    const orderData = {
-      items, total,
-      coupon: coupon ?? null,
-      shipping_name: fd.get('name') as string,
-      shipping_phone: fd.get('phone') as string,
-      shipping_city: fd.get('city') as string,
-      shipping_address: fd.get('address') as string,
-      shipping_notes: fd.get('notes') as string,
-      payment_method: 'cod'
+    const rpcPayload = {
+      p_items: items.map(i => ({ key: i.key, productId: i.productId, name_ar: i.name_ar, name_en: i.name_en, weight: i.weight, price: i.price, qty: i.qty, note: i.note ?? null })),
+      p_total: total,
+      p_coupon: coupon?.code ?? null,
+      p_name: fd.get('name') as string,
+      p_phone: fd.get('phone') as string,
+      p_city: fd.get('city') as string,
+      p_address: fd.get('address') as string,
+      p_notes: (fd.get('notes') as string) ?? ''
     }
     try {
+      const { data, error } = await supabase.rpc('place_order', rpcPayload)
+      if (!error && data) { clearCart(); navigate('/success?id=' + data); return }
+      if (error) throw new Error(error.message)
+      const orderData = {
+        items, total,
+        coupon: coupon ?? null,
+        shipping_name: rpcPayload.p_name,
+        shipping_phone: rpcPayload.p_phone,
+        shipping_city: rpcPayload.p_city,
+        shipping_address: rpcPayload.p_address,
+        shipping_notes: rpcPayload.p_notes,
+        payment_method: 'cod'
+      }
       const resp = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) })
-      const data = await resp.json()
-      if (data.success) { clearCart(); navigate('/success?id=' + data.orderId) }
-      else throw new Error()
+      const data2 = await resp.json()
+      if (!data2.success) throw new Error()
+      clearCart(); navigate('/success?id=' + data2.orderId)
     } catch {
       toast(t('checkout.error'))
       btn.disabled = false; btn.textContent = t('checkout.pay')

@@ -162,8 +162,21 @@ export default function Admin() {
 
   const loadOrders = async () => {
     try {
-      const resp = await fetch('/api/orders')
-      setOrders(await resp.json())
+      const { data, error } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: true })
+      if (error) throw new Error(error.message)
+      const mapped = (data ?? []).map((o: any) => ({
+        id: o.id,
+        shipping_name: o.shipping_name ?? '',
+        shipping_phone: o.shipping_phone ?? '',
+        shipping_city: o.shipping_city ?? '',
+        shipping_address: o.shipping_address ?? '',
+        total: Number(o.total) || 0,
+        status: o.status ?? 'pending',
+        payment_method: o.payment_method ?? 'cod',
+        created_at: o.created_at,
+        items: (o.order_items ?? []).map((it: any) => ({ name_en: it.product_name, weight: it.weight, price: Number(it.price) || 0, qty: it.quantity, note: it.note }))
+      }))
+      setOrders(mapped as Order[])
     } catch {}
     setLoading(false)
   }
@@ -182,7 +195,7 @@ export default function Admin() {
   }, [])
 
   const updateStatus = async (id: string, status: string) => {
-    await fetch(`/api/orders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    await supabase.from('orders').update({ status }).eq('id', id)
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o))
   }
 
@@ -318,7 +331,7 @@ export default function Admin() {
                         <td>{o.shipping_name}</td>
                         <td>{o.shipping_city}</td>
                         <td style={{ color: 'var(--gold-deep)', fontWeight: 600 }}>{o.total.toFixed(2)} ر.ع</td>
-                        <td><span className={`status-badge status-${o.status === 'pending' ? 'pending' : o.status === 'confirmed' ? 'confirmed' : 'delivered'}`}>{o.status === 'pending' ? 'معلق' : o.status === 'confirmed' ? 'مؤكد' : 'تم التوصيل'}</span></td>
+                        <td><span className={`status-badge status-${o.status === 'pending' ? 'pending' : o.status === 'processing' ? 'processing' : 'delivered'}`}>{o.status === 'pending' ? 'معلق' : o.status === 'processing' ? 'قيد التجهيز' : 'تم التوصيل'}</span></td>
                         <td style={{ fontSize: 12, color: 'var(--umber-soft)' }}>{new Date(o.created_at).toLocaleDateString('ar-OM')}</td>
                       </tr>
                     ))}
@@ -343,10 +356,10 @@ export default function Admin() {
                         <td>{o.shipping_city}</td>
                         <td style={{ color: 'var(--gold-deep)', fontWeight: 600 }}>{o.total.toFixed(2)} ر.ع</td>
                         <td>{o.payment_method === 'cod' ? 'عند الاستلام' : 'بطاقة'}</td>
-                        <td><span className={`status-badge status-${o.status === 'pending' ? 'pending' : o.status === 'confirmed' ? 'confirmed' : 'delivered'}`}>{o.status === 'pending' ? 'معلق' : o.status === 'confirmed' ? 'مؤكد' : 'تم التوصيل'}</span></td>
+                        <td><span className={`status-badge status-${o.status === 'pending' ? 'pending' : o.status === 'processing' ? 'processing' : 'delivered'}`}>{o.status === 'pending' ? 'معلق' : o.status === 'processing' ? 'قيد التجهيز' : 'تم التوصيل'}</span></td>
                         <td>
-                          {o.status === 'pending' && <button className="admin-btn primary" onClick={() => updateStatus(o.id, 'confirmed')}>تأكيد</button>}
-                          {o.status === 'confirmed' && <button className="admin-btn" onClick={() => updateStatus(o.id, 'delivered')}>تم التوصيل</button>}
+                          {o.status === 'pending' && <button className="admin-btn primary" onClick={() => updateStatus(o.id, 'processing')}>تأكيد</button>}
+                          {o.status === 'processing' && <button className="admin-btn" onClick={() => updateStatus(o.id, 'delivered')}>تم التوصيل</button>}
                         </td>
                       </tr>
                     ))}
