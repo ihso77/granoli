@@ -51,6 +51,11 @@ export default function Header() {
   useEffect(() => { setMenuOpen(false); setProfileOpen(false); setSettingsOpen(false) }, [location])
 
   useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen])
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       const tgt = e.target as Node
       if (dropdownRef.current && !dropdownRef.current.contains(tgt)) setProfileOpen(false)
@@ -165,16 +170,45 @@ export default function Header() {
       </header>
 
       <div className={`mobile-menu ${menuOpen ? 'active' : ''}`}>
-        <Link to="/">{t('nav.home')}</Link>
-        <Link to="/products">{t('nav.products')}</Link>
-        <Link to="/#contact">{t('nav.contact')}</Link>
-        <Link to="/cart">{t('nav.cartLabel')}</Link>
-        {isAdmin && <Link to="/admin" style={{ color: 'var(--gold)' }}>{t('nav.admin')}</Link>}
-        {user ? (
-          <button onClick={async () => { await supabase.auth.signOut(); navigate('/') }} style={{ fontFamily: lang === 'en' ? "'Outfit',sans-serif" : "'El Messiri',serif", fontSize: 26, color: 'var(--cream)' }}>{t('nav.logout')}</button>
-        ) : (
-          <Link to="/login">{t('nav.login')}</Link>
-        )}
+        <nav className="mobile-menu-nav">
+          <Link to="/"><span>{t('nav.home')}</span><span className="mobile-link-arrow">→</span></Link>
+          <Link to="/products"><span>{t('nav.products')}</span><span className="mobile-link-arrow">→</span></Link>
+          <Link to="/#contact"><span>{t('nav.contact')}</span><span className="mobile-link-arrow">→</span></Link>
+          <Link to="/cart">
+            <span>{t('nav.cartLabel')}</span>
+            <span className="mobile-cart-right">{cartCount > 0 && <span className="mobile-cart-count">{cartCount}</span>}<span className="mobile-link-arrow">→</span></span>
+          </Link>
+          {isAdmin && <Link to="/admin"><span>{t('nav.admin')}</span><span className="mobile-link-arrow">→</span></Link>}
+        </nav>
+
+        <div className="mobile-menu-settings">
+          <div className="mobile-ms-row">
+            <span>{t('settings.lang')}</span>
+            <div className="lang-toggle">
+              <button className={lang === 'ar' ? 'active' : ''} onClick={() => setLang('ar')}>العربية</button>
+              <button className={lang === 'en' ? 'active' : ''} onClick={() => setLang('en')}>EN</button>
+            </div>
+          </div>
+          <div className="mobile-ms-row">
+            <span>{t('settings.currency')}</span>
+            <select className="currency-select" value={currency} onChange={e => { const v = e.target.value; if (v === '__auto') setAuto(true); else setCurrency(v as Currency) }}>
+              {!auto && <option value="__auto">{t('settings.auto')}</option>}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {!auto && <button className="settings-auto" onClick={() => setAuto(true)}>{t('settings.auto')} ✓</button>}
+        </div>
+
+        <div className="mobile-menu-auth">
+          {user ? (
+            <>
+              <div className="mobile-user-name">{profile?.full_name || user.email}</div>
+              <button className="mobile-logout" onClick={async () => { await supabase.auth.signOut(); navigate('/') }}>{t('nav.logout')}</button>
+            </>
+          ) : (
+            <Link to="/login" className="mobile-login-btn">{t('nav.login')}</Link>
+          )}
+        </div>
       </div>
     </>
   )
