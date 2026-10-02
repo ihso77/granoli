@@ -490,6 +490,24 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 .coupon-pct{font-weight:700;color:var(--gold-deep);min-width:60px}
 .coupon-dates{flex:1;font-size:12px;color:var(--umber-soft)}
 
+/* المستخدمين */
+.users-online-card{background:var(--cream);border-radius:16px;padding:22px 24px;box-shadow:0 2px 12px rgba(46,56,38,.06);margin-bottom:18px;display:flex;flex-direction:column;gap:14px}
+.users-online-head{display:flex;align-items:center;gap:14px}
+.online-pulse{width:12px;height:12px;border-radius:50%;background:#34C759;box-shadow:0 0 0 0 rgba(52,199,89,.5);animation:pulse 1.8s infinite;flex-shrink:0}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,199,89,.5)}70%{box-shadow:0 0 0 10px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
+.users-online-title{font-weight:700;color:var(--umber);font-size:16px}
+.users-online-sub{font-size:13px;color:var(--umber-soft)}
+.users-online-list{display:flex;flex-wrap:wrap;gap:10px}
+.users-online-chip{display:inline-flex;align-items:center;gap:8px;background:rgba(52,199,89,.1);border:1.5px solid rgba(52,199,89,.25);color:var(--umber);padding:7px 14px;border-radius:100px;font-size:13px;font-weight:600;direction:ltr}
+.users-online-empty{font-size:13px;color:var(--umber-soft)}
+.online-dot{width:9px;height:9px;border-radius:50%;background:#34C759;display:inline-block;flex-shrink:0;margin-inline-start:8px}
+.users-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px;max-width:520px}
+.user-cell{display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;background:rgba(211,167,92,.14);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold-deep)}
+.user-avatar-ph{border:1.5px solid var(--gold)}
+.admin-chip{background:rgba(52,199,89,.12);color:#1e7a34;font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px}
+.user-chip{background:rgba(75,89,64,.08);color:var(--umber-soft);font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px}
+
 /* أدمن: موضع تأكيد */
 .modal-overlay{position:fixed;inset:0;background:rgba(46,56,38,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:5000;padding:20px}
 .modal{background:var(--cream);border-radius:16px;padding:30px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(46,56,38,.25)}

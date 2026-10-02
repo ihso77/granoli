@@ -51,6 +51,19 @@ export default function Header() {
   useEffect(() => { setMenuOpen(false); setProfileOpen(false); setSettingsOpen(false) }, [location])
 
   useEffect(() => {
+    if (!user) return
+    const ch = supabase.channel('presence-online', { config: { presence: { key: user.id } } })
+    ch.on('presence', { event: 'join' }, () => {})
+    ch.on('presence', { event: 'leave' }, () => {})
+    ch.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await ch.send({ type: 'presence', event: 'join', payload: { id: user.id, email: user.email ?? '' } })
+      }
+    })
+    return () => { supabase.removeChannel(ch) }
+  }, [user?.id])
+
+  useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [menuOpen])

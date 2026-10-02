@@ -231,3 +231,33 @@ CREATE POLICY "Admins update orders" ON orders FOR UPDATE
   USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));
 CREATE POLICY "Admins read order items" ON order_items FOR SELECT
   USING (auth.uid() IN (SELECT id FROM profiles WHERE is_admin = TRUE));
+
+-- ═══ قائمة المستخدمين (للأدمن فقط) ═══
+CREATE FUNCTION admin_list_users()
+RETURNS TABLE (
+  id UUID,
+  email TEXT,
+  created_at TIMESTAMPTZ,
+  last_sign_in_at TIMESTAMPTZ,
+  full_name TEXT,
+  phone TEXT,
+  city TEXT,
+  address TEXT,
+  is_admin BOOLEAN,
+  avatar_url TEXT
+)
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE) THEN
+    RAISE EXCEPTION 'غير مسموح';
+  END IF;
+  RETURN QUERY
+  SELECT u.id, u.email, u.created_at, u.last_sign_in_at,
+         p.full_name, p.phone, p.city, p.address, COALESCE(p.is_admin, FALSE), p.avatar_url
+  FROM auth.users u
+  LEFT JOIN profiles p ON p.id = u.id
+  ORDER BY u.created_at DESC;
+END $$;
+
+GRANT EXECUTE ON FUNCTION admin_list_users() TO authenticated;

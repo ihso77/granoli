@@ -133,7 +133,7 @@ export default function Admin() {
   const [user, setUser] = useState<User | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingRole, setCheckingRole] = useState(true)
-  const [view, setView] = useState<'dashboard' | 'orders' | 'products' | 'productForm' | 'categories' | 'coupons'>('dashboard')
+  const [view, setView] = useState<'dashboard' | 'orders' | 'products' | 'productForm' | 'categories' | 'coupons' | 'users'>('dashboard')
   const [orders, setOrders] = useState<Order[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -143,6 +143,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
   const [coupons, setCoupons] = useState<any[]>([])
   const [couponForm, setCouponForm] = useState({ code: '', percent: '', from: '', to: '' })
+  const [users, setUsers] = useState<any[]>([])
+  const [online, setOnline] = useState<{ id: string; email: string }[]>([])
 
   const loadRole = async (uid: string) => {
     try {
@@ -158,6 +160,10 @@ export default function Admin() {
     setCategories(c)
     const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false })
     setCoupons(data ?? [])
+    try {
+      const { data: u, error: uErr } = await supabase.rpc('admin_list_users')
+      if (!uErr) setUsers(u ?? [])
+    } catch {}
   }
 
   const loadOrders = async () => {
@@ -193,6 +199,23 @@ export default function Admin() {
     })
     return () => sub.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!isAdmin || view !== 'users') return
+    const ch = supabase.channel('presence-online')
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState() as Record<string, any[]>
+      const seen = new Map<string, { id: string; email: string }>()
+      Object.values(state).forEach(entries => {
+        (entries ?? []).forEach((p: any) => {
+          if (p?.email && !seen.has(p.id)) seen.set(p.id as string, { id: p.id as string, email: p.email as string })
+        })
+      })
+      setOnline(Array.from(seen.values()))
+    })
+    ch.subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [isAdmin, view])
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('orders').update({ status }).eq('id', id)
@@ -277,6 +300,7 @@ export default function Admin() {
     { key: 'products' as const, label: 'المنتجات', icon: '☷' },
     { key: 'categories' as const, label: 'الكاتجوريات', icon: '▦' },
     { key: 'coupons' as const, label: 'الكوبونات', icon: '🏷' },
+    { key: 'users' as const, label: 'المستخدمين', icon: '◉' },
     { key: 'orders' as const, label: 'الطلبات', icon: '☰' },
   ]
 
@@ -306,7 +330,7 @@ export default function Admin() {
 
       <main className="admin-main">
         <div className="admin-topbar">
-          <h2>{view === 'dashboard' ? 'لوحة التحكم' : view === 'orders' ? 'الطلبات' : view === 'products' ? 'المنتجات' : view === 'categories' ? 'الكاتجوريات' : view === 'coupons' ? 'الكوبونات' : 'إضافة / تعديل منتج'}</h2>
+          <h2>{view === 'dashboard' ? 'لوحة التحكم' : view === 'orders' ? 'الطلبات' : view === 'products' ? 'المنتجات' : view === 'categories' ? 'الكاتجوريات' : view === 'coupons' ? 'الكوبونات' : view === 'users' ? 'المستخدمين' : 'إضافة / تعديل منتج'}</h2>
           {view === 'products' && <button className="admin-btn primary big" onClick={startAdd}>+ إضافة منتج</button>}
           {view === 'productForm' && <button className="admin-btn" onClick={() => setView('products')}>← رجوع للمنتجات</button>}
         </div>
@@ -361,6 +385,55 @@ export default function Admin() {
                           {o.status === 'pending' && <button className="admin-btn primary" onClick={() => updateStatus(o.id, 'processing')}>تأكيد</button>}
                           {o.status === 'processing' && <button className="admin-btn" onClick={() => updateStatus(o.id, 'delivered')}>تم التوصيل</button>}
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+
+          {view === 'users' && (
+            <>
+              <div className="users-online-card">
+                <div className="users-online-head">
+                  <span className="online-pulse" />
+                  <div>
+                    <div className="users-online-title">المتصلون الآن داخل الموقع</div>
+                    <div className="users-online-sub">{online.length > 0 ? `${online.length} من الأعضاء مفتحين الموقع حالياً` : 'لا يوجد أعضاء متصلون الآن'}</div>
+                  </div>
+                </div>
+                <div className="users-online-list">
+                  {online.length === 0 ? <span className="users-online-empty">سيظهر هنا أي عضو من السجل قام بتسجيل الدخول وهو مفتح الموقع الآن</span> : online.map(u => (
+                    <div className="users-online-chip" key={u.id}><span className="online-dot" />{u.email}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="users-strip">
+                <div className="stat-card"><div className="stat-label">إجمالي الحسابات</div><div className="stat-value">{users.length}</div></div>
+                <div className="stat-card"><div className="stat-label">الأدمن</div><div className="stat-value">{users.filter(u => u.is_admin).length}</div></div>
+              </div>
+
+              {users.length === 0 ? <div className="admin-empty">لا توجد حسابات مسجلة بعد</div> : (
+                <table className="admin-table">
+                  <thead><tr><th>#</th><th>المستخدم</th><th>البريد الإلكتروني</th><th>الجوال</th><th>المدينة</th><th>الحالة</th><th>تاريخ التسجيل</th></tr></thead>
+                  <tbody>
+                    {users.map((u, idx) => (
+                      <tr key={u.id}>
+                        <td style={{ color: 'var(--umber-soft)', fontSize: 12 }}>{idx + 1}</td>
+                        <td>
+                          <div className="user-cell">
+                            {u.avatar_url ? <img className="user-avatar" src={u.avatar_url} alt="" /> : <span className="user-avatar user-avatar-ph">{((u.full_name || u.email || '؟')[0] || '').toUpperCase()}</span>}
+                            <span>{u.full_name || '—'}</span>
+                            {online.some(o => o.id === u.id) && <span className="online-dot" title="متصل الآن" />}
+                          </div>
+                        </td>
+                        <td dir="ltr" style={{ textAlign: 'right', fontFamily: "'Outfit',sans-serif", fontSize: 13 }}>{u.email}</td>
+                        <td dir="ltr" style={{ textAlign: 'right' }}>{u.phone ?? '—'}</td>
+                        <td>{u.city ?? '—'}</td>
+                        <td>{u.is_admin ? <span className="admin-chip">أدمن</span> : <span className="user-chip">عضو</span>}</td>
+                        <td style={{ fontSize: 12, color: 'var(--umber-soft)' }}>{u.created_at ? new Date(u.created_at).toLocaleDateString('ar-OM') : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
