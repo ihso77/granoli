@@ -114,7 +114,7 @@ export default function Header() {
                   </div>
                   <div className="settings-row">
                     <span>{t('settings.currency')}</span>
-                    <select className="currency-select" value={currency} onChange={e => setCurrency(e.target.value as Currency)}>
+                    <select className="currency-select" value={currency} onChange={e => { const v = e.target.value; if (v === '__auto') setAuto(true); else setCurrency(v as Currency) }}>
                       {!auto && <option value="__auto">{t('settings.auto')}</option>}
                       {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>

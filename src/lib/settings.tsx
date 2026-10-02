@@ -150,10 +150,14 @@ const SettingsCtx = createContext<Ctx>(null as any)
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => (localStorage.getItem('granoli_lang') as Lang) || 'ar')
   const [auto, setAutoState] = useState<boolean>(() => localStorage.getItem('granoli_auto') !== '0')
-  const [currency, setCurrencyState] = useState<Currency>(() => (localStorage.getItem('granoli_currency') as Currency) || 'OMR')
+  const [currency, setCurrencyState] = useState<Currency>(() => {
+    const c = localStorage.getItem('granoli_currency') as Currency | null
+    return c && c in RATES ? c : 'OMR'
+  })
 
   const setLang = (l: Lang) => { setLangState(l); localStorage.setItem('granoli_lang', l) }
   const setCurrency = (c: Currency) => {
+    if (!(c in RATES)) return
     setCurrencyState(c); localStorage.setItem('granoli_currency', c)
     setAutoState(false); localStorage.setItem('granoli_auto', '0')
   }
@@ -174,8 +178,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const t = (k: string) => TX[lang][k] ?? TX.ar[k] ?? k
   const fmt = (n: number) => {
-    const val = n * RATES[currency]
-    return `${val.toFixed(2)} ${lang === 'ar' ? SYM_AR[currency] : SYM_EN[currency]}`
+    const rate = RATES[currency] ?? 1
+    const val = (Number(n) || 0) * rate
+    return `${val.toFixed(2)} ${lang === 'ar' ? (SYM_AR[currency] ?? 'ر.ع') : (SYM_EN[currency] ?? 'OMR')}`
   }
 
   return (
