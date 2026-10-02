@@ -167,27 +167,29 @@ function PhoneInput() {
 
   return (
     <div className="phone-box" ref={boxRef}>
-      <button type="button" className={`phone-cc ${open ? 'open' : ''}`} onClick={() => setOpen(o => !o)}>
-        <span className="phone-flag"><CountryFlag c={GCC[ci]} /></span>
-        <span className="phone-dial">{GCC[ci].dial}</span>
-        <span className="phone-caret">▾</span>
-      </button>
+      <div className="phone-cc-wrap">
+        <button type="button" className={`phone-cc ${open ? 'open' : ''}`} onClick={() => setOpen(o => !o)}>
+          <span className="phone-flag"><CountryFlag c={GCC[ci]} /></span>
+          <span className="phone-dial">{GCC[ci].dial}</span>
+          <span className="phone-caret">▾</span>
+        </button>
+        {open && (
+          <div className="phone-cc-list" role="listbox">
+            {GCC.map((c, i) => (
+              <button type="button" key={c.key} role="option" aria-selected={i === ci} className={`phone-cc-item ${i === ci ? 'selected' : ''}`} onClick={() => { setCi(i); setVal(''); setOpen(false) }}>
+                <span className="phone-flag"><CountryFlag c={c} /></span>
+                <span className="phone-cc-name">{lang === 'ar' ? c.name_ar : c.name_en}</span>
+                <span className="phone-cc-dial">{c.dial}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <input type="tel" className="form-input phone-number" inputMode="numeric" dir="ltr"
         placeholder={t('checkout.phonePh')} value={val}
         maxLength={GCC[ci].digits}
         onChange={e => setVal(e.target.value.replace(/\D/g, ''))} />
       <input type="hidden" name="phone" value={GCC[ci].dial + val} />
-      {open && (
-        <div className="phone-cc-list">
-          {GCC.map((c, i) => (
-            <button type="button" key={c.key} className={`phone-cc-item ${i === ci ? 'selected' : ''}`} onClick={() => { setCi(i); setVal(''); setOpen(false) }}>
-              <span className="phone-flag"><CountryFlag c={c} /></span>
-              <span className="phone-cc-name">{lang === 'ar' ? c.name_ar : c.name_en}</span>
-              <span className="phone-cc-dial">{c.dial}</span>
-            </button>
-          ))}
-        </div>
-      )}
       <div className="phone-hint">{t('checkout.phoneDigits').replace('{n}', String(GCC[ci].digits))}</div>
     </div>
   )
